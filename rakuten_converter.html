@@ -1,0 +1,417 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>楽天HTML変換ツール</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,sans-serif}
+body{background:#f7f7f5;padding:24px}
+.wrap{max-width:860px;margin:0 auto}
+h1{font-size:18px;margin-bottom:16px;color:#333}
+textarea{width:100%;font-family:monospace;font-size:12px;line-height:1.5;padding:12px;border:1px solid #ddd;border-radius:8px;background:#fafaf9;color:#333;resize:vertical}
+#iH{height:200px}#oH{height:320px}
+.btns{display:flex;gap:8px;margin:12px 0;flex-wrap:wrap}
+button{padding:8px 20px;border-radius:8px;border:1px solid #ddd;cursor:pointer;font-size:13px;background:#fff;color:#333}
+button.pri{background:#006666;color:#fff;border-color:#006666}
+.tabs{display:flex;gap:6px;margin-bottom:10px}
+.tabs>div{padding:6px 16px;border-radius:8px;border:1px solid #ddd;cursor:pointer;font-size:13px;color:#888}
+.tabs>.act{background:#006666;color:#fff;border-color:#006666;font-weight:600}
+.out{position:relative;margin-bottom:8px}
+.cpb{position:absolute;top:8px;right:8px;padding:4px 12px;font-size:11px}
+#cm{font-size:12px;color:#888;min-height:20px}
+label{font-size:13px;color:#666;display:block;margin-bottom:6px}
+</style></head><body>
+<div class="wrap">
+<h1>楽天HTML変換ツール</h1>
+<label>楽天市場 PC用 HTML</label>
+<textarea id="iH" placeholder="楽天PC用のHTMLをここに貼り付け..."></textarea>
+<div class="btns">
+<button class="pri" onclick="go()">変換する</button>
+<button onclick="document.getElementById('iH').value='';document.getElementById('oB').style.display='none'">クリア</button>
+</div>
+<div id="oB" style="display:none">
+<div class="tabs" id="tabs">
+<div class="act" onclick="sw('sp',this)">楽天 SP用</div>
+<div onclick="sw('yahoo',this)">Yahoo用</div>
+<div onclick="sw('shopify',this)">Shopify用</div>
+</div>
+<div class="out"><button class="cpb" onclick="cp()">コピー</button><textarea id="oH" readonly></textarea></div>
+<p id="cm"></p>
+</div>
+</div>
+<script>
+let O={sp:'',yahoo:'',shopify:''},cur='sp';
+
+function go(){
+  const h=document.getElementById('iH').value.trim();
+  if(!h){alert('HTMLを入力してください');return}
+  O.sp=toSP(h); O.yahoo=toYahoo(h); O.shopify=toShopify(h);
+  document.getElementById('oB').style.display='block'; show();
+}
+function show(){ document.getElementById('oH').value=O[cur] }
+function sw(t,el){ cur=t; document.querySelectorAll('#tabs>div').forEach(d=>d.classList.remove('act')); el.classList.add('act'); show() }
+function cp(){ document.getElementById('oH').select(); document.execCommand('copy'); const m=document.getElementById('cm'); m.textContent='コピーしました！'; setTimeout(()=>m.textContent='',2000) }
+
+// --- ユーティリティ ---
+function exS(el,p){ const s=el.getAttribute('style')||'',m=s.match(new RegExp(p+'\\s*:\\s*([^;]+)','i')); return m?m[1].trim():null }
+
+function isHd(t){
+  const r=t.querySelectorAll(':scope>tbody>tr,:scope>tr');
+  if(r.length!==1) return false;
+  const c=r[0].querySelectorAll('td,th');
+  if(c.length!==1) return false;
+  const d=c[0];
+  return !!(d.getAttribute('bgcolor')||exS(d,'background-color')) && !!d.querySelector('font[color]');
+}
+
+function isLay(t){
+  if(isHd(t)) return false;
+  const w=t.getAttribute('width'), cp=t.getAttribute('cellpadding'), b=t.getAttribute('border'), cs=t.getAttribute('cellspacing');
+  if(cp==='10'&&cs==='5') return false;
+  if((w==='660'||w==='650')&&(!cp||cp==='0')) return true;
+  if(b==='0'&&cs==='0') return true;
+  return false;
+}
+
+// 全行・全セルの中身を取り出し、複数行なら行間に<br><br>挿入
+function uwT(t){
+  const p=t.parentNode, d=t.ownerDocument;
+  const rows=t.querySelectorAll(':scope>tbody>tr,:scope>tr');
+  const multi=rows.length>1;
+  rows.forEach(function(row){
+    const cells=row.querySelectorAll(':scope>td,:scope>th');
+    for(const c of cells){ while(c.firstChild) p.insertBefore(c.firstChild,t) }
+    if(multi){ p.insertBefore(d.createElement('br'),t); p.insertBefore(d.createElement('br'),t) }
+  });
+  t.remove();
+}
+
+function rmTi(r){
+  r.querySelectorAll('div[align="center"]').forEach(function(d){
+    const s=d.querySelector('strong');
+    if(s && /\[[A-Za-z0-9][-A-Za-z0-9]*\]/.test(s.textContent)){
+      let n=d.nextSibling;
+      while(n&&((n.nodeType===1&&n.tagName==='BR')||(n.nodeType===3&&!n.textContent.trim()))){ const x=n; n=n.nextSibling; x.remove() }
+      d.remove();
+    }
+  });
+}
+
+function rmOr(r){
+  ['tbody','tr','td'].forEach(function(tag){
+    r.querySelectorAll(tag).forEach(function(el){
+      if(!el.closest('table')){ while(el.firstChild) el.parentNode.insertBefore(el.firstChild,el); el.remove() }
+    });
+  });
+}
+
+function rmDot(r){
+  r.querySelectorAll('td[valign="top"]').forEach(function(td){ if(td.textContent.trim()==='・') td.remove() });
+}
+
+function rmLay(r){
+  let a=true;
+  while(a){ a=false; r.querySelectorAll('table').forEach(function(t){ if(isLay(t)){ uwT(t); a=true } }) }
+}
+
+// Shopify用：レイアウトテーブル展開時に中身を<p>で囲む
+function uwTSh(t){
+  const p=t.parentNode, d=t.ownerDocument;
+  const rows=t.querySelectorAll(':scope>tbody>tr,:scope>tr');
+  const multi=rows.length>1;
+  const pEl=d.createElement('p');
+  rows.forEach(function(row){
+    const cells=row.querySelectorAll(':scope>td,:scope>th');
+    for(const c of cells){ while(c.firstChild) pEl.appendChild(c.firstChild) }
+    if(multi){ pEl.appendChild(d.createElement('br')); pEl.appendChild(d.createElement('br')) }
+  });
+  p.insertBefore(pEl, t);
+  t.remove();
+}
+
+function rmLaySh(r){
+  let a=true;
+  while(a){ a=false; r.querySelectorAll('table').forEach(function(t){ if(isLay(t)){ uwTSh(t); a=true } }) }
+}
+
+function cBr(h){
+  h=h.replace(/(<br\s*\/?>[\s\n]*){3,}/gi,'<br><br>');
+  h=h.replace(/^(\s*<br\s*\/?>[\s\n]*)+/i,'');
+  h=h.replace(/(\s*<br\s*\/?>[\s\n]*)+$/i,'');
+  return h.replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+}
+
+function gHT(fe){
+  let t='';
+  (function w(n){ for(const c of n.childNodes){
+    if(c.nodeType===3) t+=c.textContent;
+    else if(c.nodeType===1){ const g=c.tagName.toLowerCase(); if(g==='strong'||g==='b') w(c); else if(g==='br') t+='<br>'; else w(c) }
+  }})(fe);
+  return t.trim();
+}
+
+// ===================== 楽天SP用 =====================
+function toSP(html){
+  const doc=new DOMParser().parseFromString(html,'text/html'), b=doc.body;
+
+  // strong color:#C00 → font+b
+  b.querySelectorAll('strong').forEach(function(s){
+    if(/color\s*:\s*#C00/i.test(s.getAttribute('style')||'')){
+      const f=doc.createElement('font'); f.setAttribute('color','#CC0000');
+      const bb=doc.createElement('b'); bb.innerHTML=s.innerHTML;
+      f.appendChild(bb); s.replaceWith(f);
+    }
+  });
+
+  rmTi(b);
+
+  // 見出しテーブル統一
+  b.querySelectorAll('table').forEach(function(t){
+    if(!isHd(t)) return;
+    const c=t.querySelector('td,th');
+    const bg=c.getAttribute('bgcolor')||exS(c,'background-color')||'#006666';
+    const fe=c.querySelector('font[color]'), fc=fe?fe.getAttribute('color'):'#FFFFFF';
+    const tx=gHT(fe);
+    const nt=doc.createElement('table');
+    nt.setAttribute('width','100%'); nt.setAttribute('align','center'); nt.setAttribute('border','1');
+    nt.setAttribute('cellpadding','12'); nt.setAttribute('cellspacing','0'); nt.setAttribute('bordercolor','#ccc');
+    nt.innerHTML='<tr><td bgcolor="'+bg+'"><font color="'+fc+'">\n'+tx+'\n</font></td></tr>';
+    t.replaceWith(nt);
+  });
+
+  // スペックテーブル：width="660"→"100%"、<strong>タグ除去
+  b.querySelectorAll('table').forEach(function(t){
+    var cp=t.getAttribute('cellpadding'), cs=t.getAttribute('cellspacing'), w=t.getAttribute('width');
+    if(cp==='10'&&cs==='5'&&w==='660'){
+      t.setAttribute('width','100%');
+      t.querySelectorAll('strong').forEach(function(s){
+        while(s.firstChild) s.parentNode.insertBefore(s.firstChild,s);
+        s.remove();
+      });
+    }
+  });
+
+  rmDot(b); rmLaySh(b); rmOr(b);
+  return cBr(spS(b));
+}
+
+// SP用：<div align="center">を画像=center、テキスト(p)=左寄せに分離
+function spSerDiv(div){
+  var o='', buf='';
+  for(var i=0;i<div.childNodes.length;i++){
+    var ch=div.childNodes[i];
+    if(ch.nodeType===3){ buf+=ch.textContent; continue }
+    if(ch.nodeType!==1) continue;
+    var tag=ch.tagName.toLowerCase();
+    // <p>(展開されたテキスト段落)やtableはcenterの外に出す
+    if(tag==='p'||tag==='table'){
+      if(buf.trim()){ o+='<center>\n'+buf+'\n</center>\n'; buf=''; }
+      // SPではpタグ自体は出さず中身のみ出力
+      if(tag==='p'){ o+=spS(ch)+'\n' }
+      else {
+        var at=''; ['width','align','border','cellpadding','cellspacing','bordercolor'].forEach(function(x){ var v=ch.getAttribute(x); if(v!==null) at+=' '+x+'="'+v+'"' });
+        o+='<table'+at+'>\n'+spS(ch)+'</table>\n';
+      }
+      continue;
+    }
+    if(tag==='img'){ buf+='<img src="'+(ch.getAttribute('src')||'')+'" alt="" width="100%">'; continue }
+    if(tag==='a'){ buf+='<a href="'+(ch.getAttribute('href')||'#')+'"'+(ch.getAttribute('target')==='_blank'?' target="_blank"':'')+'>'+spS(ch)+'</a>'; continue }
+    if(tag==='br'){ buf+='<br>'; continue }
+    if(tag==='tbody'||tag==='span'){ buf+=spS(ch); continue }
+    buf+=spS(ch);
+  }
+  if(buf.trim()){ o+='<center>\n'+buf+'\n</center>\n'; }
+  return o;
+}
+
+function spS(n){
+  let o='';
+  for(const c of n.childNodes){
+    if(c.nodeType===3){ o+=c.textContent; continue }
+    if(c.nodeType!==1) continue;
+    const t=c.tagName.toLowerCase();
+    if(t==='tbody'||t==='span'){ o+=spS(c); continue }
+    if(['script','style','head','meta','link'].indexOf(t)>=0) continue;
+    if(t==='br'||t==='hr'){ o+='<'+t+'>'; continue }
+    if(t==='div'){
+      const a=(c.getAttribute('align')||'').toLowerCase();
+      if(a==='center'){ o+=spSerDiv(c) } else { o+=spS(c) }
+      continue;
+    }
+    if(t==='img'){ o+='<img src="'+(c.getAttribute('src')||'')+'" alt="" width="100%">'; continue }
+    if(t==='a'){
+      o+='<a href="'+(c.getAttribute('href')||'#')+'"'+(c.getAttribute('target')==='_blank'?' target="_blank"':'')+'>'+spS(c)+'</a>';
+      continue;
+    }
+    if(t==='table'){
+      var at=''; ['width','align','border','cellpadding','cellspacing','bordercolor'].forEach(function(x){ var v=c.getAttribute(x); if(v!==null) at+=' '+x+'="'+v+'"' });
+      o+='<table'+at+'>\n'+spS(c)+'</table>'; continue;
+    }
+    if(t==='tr'){ o+='<tr>\n'+spS(c)+'</tr>\n'; continue }
+    if(t==='td'||t==='th'){
+      var at=''; ['bgcolor','align','valign','width','colspan','rowspan'].forEach(function(x){ var v=c.getAttribute(x); if(v!==null) at+=' '+x+'="'+v+'"' });
+      o+='<'+t+at+'>'+spS(c)+'</'+t+'>\n'; continue;
+    }
+    if(t==='font'){
+      var at=''; ['color','size'].forEach(function(x){ var v=c.getAttribute(x); if(v!==null) at+=' '+x+'="'+v+'"' });
+      o+='<font'+at+'>'+spS(c)+'</font>'; continue;
+    }
+    if(t==='center'){ o+='<center>\n'+spS(c)+'\n</center>'; continue }
+    if(t==='p'){ o+=spS(c); continue }
+    if(['b','strong','em','i','u','s','p','h1','h2','h3','h4','h5','h6','ul','ol','li'].indexOf(t)>=0){
+      o+='<'+t+'>'+spS(c)+'</'+t+'>'; continue;
+    }
+    o+=spS(c);
+  }
+  return o;
+}
+
+// ===================== Yahoo用 =====================
+function toYahoo(html){
+  var o=html;
+  o=o.replace(/https?:\/\/image\.rakuten\.co\.jp\/craftcafe\/cabinet\/[^"'\s]*\/([^"'\s\/]+)/gi,
+    'https://shopping.c.yimg.jp/lib/craftcafe/$1');
+  o=o.replace(/https?:\/\/search\.rakuten\.co\.jp\/search\/mall\/([^/?]+)\/?[^"']*/gi, function(m,kw){
+    var d=decodeURIComponent(kw.replace(/\+/g,' '));
+    return 'https://store.shopping.yahoo.co.jp/craftcafe/search.html?p='+encodeURIComponent(d.replace(/ /g,'\u3000'));
+  });
+  o=o.replace(/https?:\/\/item\.rakuten\.co\.jp\/craftcafe\/([^/"'\s]+)\/?/gi, function(m,id){
+    return 'https://store.shopping.yahoo.co.jp/craftcafe/'+id+'.html?sc_i=shopping-pc-web-result-storesch-rsltlst-img&ea=';
+  });
+  o=o.replace(/(<img[^>]*)\bwidth="(\d+)"([^>]*>)/gi, function(m,pre,w,post){
+    return parseInt(w)>600 ? pre+'width="100%"'+post : m;
+  });
+  o=o.replace(/font-family\s*:[^;]+;?/gi,'');
+  return o.replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+}
+
+// ===================== Shopify用 =====================
+function toShopify(html){
+  const doc=new DOMParser().parseFromString(html,'text/html'), b=doc.body;
+
+  // strong color:#C00 → span+b
+  b.querySelectorAll('strong').forEach(function(s){
+    if(/color\s*:\s*#C00/i.test(s.getAttribute('style')||'')){
+      const sp=doc.createElement('span'); sp.setAttribute('style','color: #cc0000;');
+      const bb=doc.createElement('b'); bb.innerHTML=s.innerHTML;
+      sp.appendChild(bb); s.replaceWith(sp);
+    }
+  });
+
+  rmTi(b);
+
+  // 見出しテーブル→Shopify形式
+  b.querySelectorAll('table').forEach(function(t){
+    if(!isHd(t)) return;
+    const c=t.querySelector('td,th');
+    const bg=c.getAttribute('bgcolor')||exS(c,'background-color')||'#006666';
+    const fe=c.querySelector('font[color]'), fc=fe?fe.getAttribute('color'):'#FFFFFF';
+    const tx=gHT(fe);
+    const nt=doc.createElement('table');
+    nt.setAttribute('cellspacing','0'); nt.setAttribute('cellpadding','12'); nt.setAttribute('border','1');
+    nt.setAttribute('align','center'); nt.setAttribute('width','100%');
+    nt.innerHTML='<tbody>\n<tr>\n<td bgcolor="'+bg+'"><strong><span style="color: '+fc.toLowerCase()+';"> '+tx+' </span></strong></td>\n</tr>\n</tbody>';
+    t.replaceWith(nt);
+  });
+
+  // スペックテーブル
+  b.querySelectorAll('table').forEach(function(t){
+    var cp=t.getAttribute('cellpadding'), cs=t.getAttribute('cellspacing');
+    if(cp==='10'&&cs==='5'){
+      t.setAttribute('width','100%'); t.setAttribute('border','1');
+      t.removeAttribute('align'); t.removeAttribute('style');
+      t.querySelectorAll('td[bgcolor]').forEach(function(td){ if(td.getAttribute('width')) td.setAttribute('width','20%') });
+    }
+  });
+
+  rmDot(b); rmLaySh(b); rmOr(b);
+  b.querySelectorAll('a[href]').forEach(function(a){
+    var h=a.getAttribute('href')||'';
+    var sm=h.match(/https?:\/\/search\.rakuten\.co\.jp\/search\/mall\/([^/?]+)/i);
+    if(sm){ var d=decodeURIComponent(sm[1].replace(/\+/g,' ')); a.setAttribute('href','https://craftcafe.store/search?q='+encodeURIComponent(d).replace(/%20/g,'+')) }
+    var im=h.match(/https?:\/\/item\.rakuten\.co\.jp\/craftcafe\/([^/"'\s]+)/i);
+    if(im) a.setAttribute('href','https://craftcafe.store/products/'+im[1]);
+  });
+
+  return cBr(shS(b));
+}
+
+// Shopify用：<div align="center">を画像=center、テキスト(p)=左寄せに分離
+function shSerDiv(div){
+  var o='', buf='';
+  for(var i=0;i<div.childNodes.length;i++){
+    var ch=div.childNodes[i];
+    if(ch.nodeType===3){
+      buf+=ch.textContent; continue;
+    }
+    if(ch.nodeType!==1) continue;
+    var tag=ch.tagName.toLowerCase();
+    // <p>やtableはcenterの外に出す
+    if(tag==='p'||tag==='table'){
+      if(buf.trim()){ o+='<center>\n'+buf+'\n</center>\n'; buf=''; }
+      o+=shSone(ch); continue;
+    }
+    // img, a(img含む), br, 短いテキスト → centerバッファに追加
+    if(tag==='img'){ buf+='<img width="100%" alt="" src="'+(ch.getAttribute('src')||'')+'">'; continue }
+    if(tag==='a'){ buf+='<a href="'+(ch.getAttribute('href')||'#')+'"'+(ch.getAttribute('target')==='_blank'?' target="_blank"':'')+'>'+shS(ch)+'</a>'; continue }
+    if(tag==='br'){ buf+='<br>'; continue }
+    buf+=shSone(ch);
+  }
+  if(buf.trim()){ o+='<center>\n'+buf+'\n</center>\n'; }
+  return o;
+}
+// 単一ノードをシリアライズ
+function shSone(c){
+  var t=c.tagName.toLowerCase();
+  if(t==='p') return '<p>'+shS(c)+'</p>\n';
+  if(t==='table'){
+    var at=''; ['cellspacing','cellpadding','border','align','width','bordercolor'].forEach(function(x){ var v=c.getAttribute(x); if(v!==null) at+=' '+x+'="'+v+'"' });
+    return '<table'+at+'>\n'+shS(c)+'</table>\n';
+  }
+  return shS(c);
+}
+
+function shS(n){
+  let o='';
+  for(const c of n.childNodes){
+    if(c.nodeType===3){ o+=c.textContent; continue }
+    if(c.nodeType!==1) continue;
+    const t=c.tagName.toLowerCase();
+    if(['script','style','head','meta','link'].indexOf(t)>=0) continue;
+    if(t==='br'||t==='hr'){ o+='<'+t+'>'; continue }
+    if(t==='div'){
+      const a=(c.getAttribute('align')||'').toLowerCase();
+      if(a==='center'){ o+=shSerDiv(c) } else { o+=shS(c) }
+      continue;
+    }
+    if(t==='img'){ o+='<img width="100%" alt="" src="'+(c.getAttribute('src')||'')+'">'; continue }
+    if(t==='a'){
+      o+='<a href="'+(c.getAttribute('href')||'#')+'"'+(c.getAttribute('target')==='_blank'?' target="_blank"':'')+'>'+shS(c)+'</a>';
+      continue;
+    }
+    if(t==='table'){
+      var at=''; ['cellspacing','cellpadding','border','align','width','bordercolor'].forEach(function(x){ var v=c.getAttribute(x); if(v!==null) at+=' '+x+'="'+v+'"' });
+      o+='<table'+at+'>\n'+shS(c)+'</table>'; continue;
+    }
+    if(t==='tbody'){ o+='<tbody>\n'+shS(c)+'</tbody>\n'; continue }
+    if(t==='tr'){ o+='<tr>\n'+shS(c)+'</tr>\n'; continue }
+    if(t==='td'||t==='th'){
+      var at=''; ['width','bgcolor','align','valign','colspan','rowspan'].forEach(function(x){ var v=c.getAttribute(x); if(v!==null) at+=' '+x+'="'+v+'"' });
+      o+='<'+t+at+'>'+shS(c)+'</'+t+'>\n'; continue;
+    }
+    if(t==='font'){
+      var cl=c.getAttribute('color');
+      o+= cl ? '<span style="color: '+cl.toLowerCase()+';">'+shS(c)+'</span>' : shS(c);
+      continue;
+    }
+    if(t==='center'){ o+='<center>\n'+shS(c)+'\n</center>'; continue }
+    if(t==='span'){
+      var st=c.getAttribute('style');
+      o+= st ? '<span style="'+st+'">'+shS(c)+'</span>' : shS(c);
+      continue;
+    }
+    if(['b','strong','em','i','u','s','p','h1','h2','h3','h4','h5','h6','ul','ol','li'].indexOf(t)>=0){
+      o+='<'+t+'>'+shS(c)+'</'+t+'>'; continue;
+    }
+    o+=shS(c);
+  }
+  return o;
+}
+</script>
+</body></html>
