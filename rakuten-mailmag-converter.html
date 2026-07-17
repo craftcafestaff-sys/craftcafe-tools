@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>楽天メルマガ → Yahoo/Shopify 変換ツール</title>
+<style>
+  :root{
+    --teal:#006666;
+    --teal-light:#e6f2f2;
+    --border:#d8dfe0;
+    --bg:#f7f8f8;
+  }
+  *{box-sizing:border-box;}
+  body{
+    font-family:"Hiragino Sans","Yu Gothic",sans-serif;
+    background:var(--bg);
+    margin:0;
+    padding:24px;
+    color:#222;
+  }
+  h1{font-size:20px;color:var(--teal);margin:0 0 4px;}
+  .sub{color:#666;font-size:13px;margin-bottom:20px;}
+  .grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:20px;
+  }
+  .panel{
+    background:#fff;
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:16px;
+  }
+  .panel h2{
+    font-size:15px;
+    margin:0 0 10px;
+    color:var(--teal);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  textarea{
+    width:100%;
+    height:260px;
+    font-family:ui-monospace,Consolas,monospace;
+    font-size:12px;
+    border:1px solid var(--border);
+    border-radius:6px;
+    padding:8px;
+    resize:vertical;
+  }
+  .actions{margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;}
+  button{
+    background:var(--teal);
+    color:#fff;
+    border:none;
+    padding:10px 18px;
+    border-radius:6px;
+    font-size:14px;
+    cursor:pointer;
+  }
+  button:hover{opacity:.9;}
+  button.secondary{
+    background:#fff;
+    color:var(--teal);
+    border:1px solid var(--teal);
+  }
+  input[type=file]{font-size:13px;}
+  .output-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:20px;
+    margin-top:24px;
+  }
+  .log{
+    margin-top:10px;
+    background:var(--teal-light);
+    border-radius:6px;
+    padding:10px 12px;
+    font-size:12px;
+    max-height:160px;
+    overflow-y:auto;
+    line-height:1.6;
+  }
+  .log div{margin-bottom:2px;}
+  .log .removed{color:#b3261e;}
+  .log .warn{color:#8a6d00;}
+  .log .ok{color:#1b5e1b;}
+  .btnrow{display:flex;gap:8px;margin-top:8px;}
+  .btnrow button{padding:6px 12px;font-size:12px;}
+  .empty{color:#999;font-size:13px;}
+</style>
+</head>
+<body>
+
+<h1>楽天メルマガ → Yahoo / Shopify 変換ツール</h1>
+<div class="sub">楽天市場PC向けメールマガジンのHTMLを、Yahoo!ショッピング用・Shopify用に自動変換します。</div>
+
+<div class="panel">
+  <h2>① 楽天メルマガHTMLを入力</h2>
+  <textarea id="input" placeholder="ここに楽天メルマガのHTMLソースを貼り付けてください"></textarea>
+  <div class="actions">
+    <input type="file" id="fileInput" accept=".html,.htm">
+    <button onclick="runConvert()">変換する</button>
+    <button class="secondary" onclick="clearAll()">クリア</button>
+  </div>
+</div>
+
+<div class="output-grid">
+  <div class="panel">
+    <h2>Yahoo!ショッピング用<span id="yahooCount"></span></h2>
+    <textarea id="yahooOut" readonly placeholder="変換結果がここに表示されます"></textarea>
+    <div class="btnrow">
+      <button onclick="copyOut('yahooOut')">コピー</button>
+      <button class="secondary" onclick="downloadOut('yahooOut','yahoo_mailmag.html')">ダウンロード</button>
+    </div>
+    <div class="log" id="yahooLog"><span class="empty">変換するとここにログが表示されます</span></div>
+  </div>
+
+  <div class="panel">
+    <h2>Shopify用<span id="shopifyCount"></span></h2>
+    <textarea id="shopifyOut" readonly placeholder="変換結果がここに表示されます"></textarea>
+    <div class="btnrow">
+      <button onclick="copyOut('shopifyOut')">コピー</button>
+      <button class="secondary" onclick="downloadOut('shopifyOut','shopify_mailmag.html')">ダウンロード</button>
+    </div>
+    <div class="log" id="shopifyLog"><span class="empty">変換するとここにログが表示されます</span></div>
+  </div>
+</div>
+
+<script>
+document.getElementById('fileInput').addEventListener('change', function(e){
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    document.getElementById('input').value = ev.target.result;
+  };
+  reader.readAsText(file, 'utf-8');
+});
+
+function clearAll(){
+  document.getElementById('input').value = '';
+  document.getElementById('fileInput').value = '';
+  document.getElementById('yahooOut').value = '';
+  document.getElementById('shopifyOut').value = '';
+  document.getElementById('yahooLog').innerHTML = '<span class="empty">変換するとここにログが表示されます</span>';
+  document.getElementById('shopifyLog').innerHTML = '<span class="empty">変換するとここにログが表示されます</span>';
+  document.getElementById('yahooCount').textContent = '';
+  document.getElementById('shopifyCount').textContent = '';
+}
+
+function copyOut(id){
+  const el = document.getElementById(id);
+  el.select();
+  document.execCommand('copy');
+}
+
+function downloadOut(id, filename){
+  const text = document.getElementById(id).value;
+  if (!text) return;
+  const blob = new Blob([text], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* =========================================================
+   変換ロジック
+   ========================================================= */
+function runConvert(){
+  const raw = document.getElementById('input').value;
+  if (!raw.trim()){
+    alert('楽天メルマガのHTMLを入力してください。');
+    return;
+  }
+  const yahoo = convertMail(raw, 'yahoo');
+  const shopify = convertMail(raw, 'shopify');
+
+  document.getElementById('yahooOut').value = yahoo.html;
+  document.getElementById('shopifyOut').value = shopify.html;
+
+  renderLog('yahooLog', yahoo.log);
+  renderLog('shopifyLog', shopify.log);
+
+  document.getElementById('yahooCount').textContent = '（ログ ' + yahoo.log.length + '件）';
+  document.getElementById('shopifyCount').textContent = '（ログ ' + shopify.log.length + '件）';
+}
+
+function renderLog(elId, logArr){
+  const el = document.getElementById(elId);
+  if (!logArr.length){
+    el.innerHTML = '<span class="empty">特筆すべき変換はありませんでした</span>';
+    return;
+  }
+  el.innerHTML = logArr.map(item => {
+    const cls = item.type === 'removed' ? 'removed' : (item.type === 'warn' ? 'warn' : 'ok');
+    return '<div class="' + cls + '">' + escapeHtml(item.text) + '</div>';
+  }).join('');
+}
+
+function escapeHtml(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function convertMail(html, platform){
+  const log = [];
+  const pushLog = (type, text) => log.push({type, text});
+
+  /* ---- 1. DOM解析して楽天専用キャンペーンバナーのテーブルを丸ごと削除 ---- */
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+
+  const campaignHrefPatterns = [
+    /event\.rakuten\.co\.jp\//i,
+    /coupon\.rakuten\.co\.jp\/getCoupon/i,
+    /network\.mobile\.rakuten\.co\.jp/i,
+  ];
+
+  const anchors = Array.from(doc.querySelectorAll('a[href]'));
+  const tablesToRemove = new Set();
+
+  anchors.forEach(a => {
+    const href = a.getAttribute('href') || '';
+    const isCampaign = campaignHrefPatterns.some(p => p.test(href));
+    // LINE公式アカウント等のバナー：link.rakuten.co.jp を使い、かつ画像を含むリンク（＝バナー）
+    const isLineBanner = /link\.rakuten\.co\.jp/i.test(href) && a.querySelector('img');
+    if (isCampaign || isLineBanner){
+      const table = a.closest('table');
+      if (table && !tablesToRemove.has(table)){
+        tablesToRemove.add(table);
+        const label = (a.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 28);
+        pushLog('removed', '削除：楽天専用キャンペーンバナー「' + (label || href) + '」');
+      }
+    }
+  });
+  tablesToRemove.forEach(t => t.remove());
+
+  // 末尾のRAT関連スクリプト（ページアクショントラッキング）を除去
+  doc.querySelectorAll('script').forEach(s => {
+    const src = s.getAttribute('src') || '';
+    if (/r10s\.jp/i.test(src)){
+      s.remove();
+    }
+  });
+
+  let out = doc.body.innerHTML;
+
+  /* ---- 2. Facebook / Instagram（フッターのSNSリンク） ---- */
+  out = out.replace(
+    /Facebook[：:]\s*<a href="https?:\/\/link\.rakuten\.co\.jp\/[^"]*"[^>]*>\s*<font[^>]*>[^<]*<\/font>\s*<\/a>/i,
+    () => {
+      if (platform === 'shopify'){
+        pushLog('ok', '変換：FacebookリンクをShopify用に置き換え（https://www.facebook.com/craftcafe.kyoto）');
+        return 'Facebook：<a href="https://www.facebook.com/craftcafe.kyoto" target="_blank"><font color="#FF6666">https://www.facebook.com/craftcafe.kyoto</font></a>';
+      } else {
+        pushLog('warn', '削除：Facebookリンク行（Yahoo!ショッピングに対応ページがないため）');
+        return '';
+      }
+    }
+  );
+
+  out = out.replace(
+    /Instagram[：:]\s*<a href="https?:\/\/link\.rakuten\.co\.jp\/[^"]*"[^>]*>\s*<font[^>]*>[^<]*<\/font>\s*<\/a>/i,
+    () => {
+      if (platform === 'shopify'){
+        pushLog('ok', '変換：InstagramリンクをShopify用に置き換え（https://www.instagram.com/craftcafe_kyoto/）');
+        return 'Instagram：<a href="https://www.instagram.com/craftcafe_kyoto/" target="_blank"><font color="#FF6666">https://www.instagram.com/craftcafe_kyoto/</font></a>';
+      } else {
+        pushLog('warn', '削除：Instagramリンク行（Yahoo!ショッピングに対応ページがないため）');
+        return '';
+      }
+    }
+  );
+
+  /* ---- 3. ギフトラッピング案内ページ（店舗トップより先に処理） ---- */
+  out = out.replace(
+    /https?:\/\/www\.rakuten\.ne\.jp\/gold\/craftcafe\/+info\/giftwrap\.html/gi,
+    () => {
+      const url = platform === 'shopify'
+        ? 'https://craftcafe.store/pages/wrapping'
+        : 'https://shopping.geocities.jp/craftcafe/giftwarp.html';
+      pushLog('ok', '変換：ギフトラッピング案内ページ → ' + url);
+      return url;
+    }
+  );
+
+  /* ---- 4. 店舗コンテンツページ：今売れてるアイテム ---- */
+  out = out.replace(
+    /https?:\/\/www\.rakuten\.co\.jp\/craftcafe\/contents\/ranking\/?/gi,
+    () => {
+      const url = platform === 'shopify'
+        ? 'https://craftcafe.store/collections/ranking'
+        : 'https://shopping.geocities.jp/craftcafe/#ranking';
+      pushLog('ok', '変換：「今売れてるアイテム」→ ' + url);
+      return url;
+    }
+  );
+
+  /* ---- 5. 店舗コンテンツページ：新着アイテム ---- */
+  out = out.replace(
+    /https?:\/\/www\.rakuten\.co\.jp\/craftcafe\/contents\/newarrival\/?/gi,
+    () => {
+      const url = platform === 'shopify'
+        ? 'https://craftcafe.store/collections/newitem'
+        : 'https://store.shopping.yahoo.co.jp/craftcafe/search.html?p=&X=99#CentSrchFilter1';
+      pushLog('ok', '変換：「新着アイテム」→ ' + url);
+      return url;
+    }
+  );
+
+  /* ---- 6. 商品ページリンク ---- */
+  out = out.replace(
+    /https?:\/\/item\.rakuten\.co\.jp\/craftcafe\/([^\/"'\s]+)\/?/gi,
+    (m, code) => {
+      return platform === 'shopify'
+        ? 'https://craftcafe.store/products/' + code
+        : 'https://store.shopping.yahoo.co.jp/craftcafe/' + code + '.html';
+    }
+  );
+
+  /* ---- 7. 検索リンク ---- */
+  out = out.replace(
+    /https?:\/\/search\.rakuten\.co\.jp\/search\/mall\/([^\/?"']+)\/?[^"'\s]*/gi,
+    (m, kw) => {
+      let decoded;
+      try {
+        decoded = decodeURIComponent(kw.replace(/\+/g, '\u3000'));
+      } catch(e){
+        decoded = kw;
+      }
+      if (platform === 'shopify'){
+        pushLog('warn', '要確認：検索リンク「' + decoded + '」をShopify検索URL形式に変換しました（形式は仮のため要確認）');
+        return 'https://craftcafe.store/search?q=' + encodeURIComponent(decoded);
+      } else {
+        return 'https://store.shopping.yahoo.co.jp/craftcafe/search.html?p=' + encodeURIComponent(decoded);
+      }
+    }
+  );
+
+  /* ---- 8. 店舗トップページ（2種類のドメイン表記） ---- */
+  out = out.replace(
+    /https?:\/\/www\.rakuten\.co\.jp\/craftcafe\/(?=["'<])/gi,
+    () => platform === 'shopify' ? 'https://craftcafe.store/' : 'https://store.shopping.yahoo.co.jp/craftcafe/'
+  );
+  out = out.replace(
+    /https?:\/\/www\.rakuten\.ne\.jp\/gold\/craftcafe\/(?=["'<])/gi,
+    () => platform === 'shopify' ? 'https://craftcafe.store/' : 'https://store.shopping.yahoo.co.jp/craftcafe/'
+  );
+
+  /* ---- 8b. その他の店舗コンテンツページ（ranking / newarrival 以外）を変換 ---- */
+  out = out.replace(
+    /https?:\/\/www\.rakuten\.co\.jp\/craftcafe\/contents\/([^\/"']+)\/?/gi,
+    (m, section) => {
+      const url = platform === 'shopify'
+        ? 'https://craftcafe.store/pages/' + section
+        : 'https://shopping.geocities.jp/craftcafe/event/' + section + '.html';
+      pushLog('ok', '変換：店舗コンテンツページ「' + section + '」→ ' + url);
+      return url;
+    }
+  );
+
+  /* ---- 9. 画像URL ---- */
+  out = out.replace(
+    /https?:\/\/image\.rakuten\.co\.jp\/craftcafe\/cabinet\/[^"'\s?]*\/([^"'\s\/?]+)/gi,
+    (m, file) => {
+      if (platform === 'yahoo'){
+        return 'https://shopping.c.yimg.jp/lib/craftcafe/' + file;
+      } else {
+        pushLog('warn', '要差し替え：画像「' + file + '」（Shopify管理画面にアップロード後、URLを差し替えてください）');
+        return m;
+      }
+    }
+  );
+  out = out.replace(
+    /https?:\/\/tshop\.r10s\.jp\/craftcafe\/cabinet\/[^"'\s?]*\/([^"'\s\/?]+)(\?[^"'\s]*)?/gi,
+    (m, file) => {
+      if (platform === 'yahoo'){
+        return 'https://shopping.c.yimg.jp/lib/craftcafe/' + file;
+      } else {
+        pushLog('warn', '要差し替え：画像「' + file + '」（Shopify管理画面にアップロード後、URLを差し替えてください）');
+        return m;
+      }
+    }
+  );
+
+  if (platform === 'yahoo'){
+    pushLog('warn', '注意：画像URLは shopping.c.yimg.jp/lib/craftcafe/ 形式に変換していますが、実際にYahoo!ショッピングの画像管理に同名でアップロードしないと表示されません');
+  }
+
+  /* ---- 10. 削除したバナーの跡に残った余分な<br>を整理 ---- */
+  // 一番外側のラッパーtdの直後に連続する<br>は完全に削除
+  out = out.replace(/^\s*(<table[^>]*>\s*(?:<tbody>\s*)?<tr>\s*<td[^>]*>)\s*(?:<br\s*\/?>\s*)+/i, '$1');
+  // 冒頭の空白・<br>を削除
+  out = out.replace(/^(?:\s|<br\s*\/?>)+/i, '');
+  // 3つ以上連続する<br>（間の空白含む）は2つにまとめる
+  const brCountBefore = (out.match(/<br\s*\/?>/gi) || []).length;
+  out = out.replace(/(?:\s*<br\s*\/?>\s*){3,}/gi, '<br><br>');
+  const brCountAfter = (out.match(/<br\s*\/?>/gi) || []).length;
+  if (brCountBefore !== brCountAfter){
+    pushLog('ok', '整理：バナー削除で残った連続する<br>タグを整理しました（' + brCountBefore + '個 → ' + brCountAfter + '個）');
+  }
+
+  /* ---- 出力を整形 ---- */
+  const titleMatch = html.match(/<title>([^<]*)<\/title>/i);
+  const baseTitle = titleMatch ? titleMatch[1] : 'クラフトカフェ メールマガジン';
+  const platformLabel = platform === 'shopify' ? 'Shopify用' : 'Yahoo!ショッピング用';
+
+  const finalHtml =
+`<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>${escapeHtmlAttr(baseTitle)}（${platformLabel}）</title>
+</head>
+<body>
+${out}
+</body>
+</html>
+`;
+
+  return { html: finalHtml, log };
+}
+
+function escapeHtmlAttr(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+
+</body>
+</html>
