@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>第二種電工 学科ドリル</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#14171a;
+  --panel:#1c2126;
+  --panel2:#232a30;
+  --hair:#343c42;
+  --text:#eef0ec;
+  --dim:#9aa3a8;
+  --yellow:#f2b705;
+  --copper:#c97a4a;
+  --green:#4caf6d;
+  --red:#e0584f;
+  --mono:'JetBrains Mono',monospace;
+  --sans:'Zen Kaku Gothic New',sans-serif;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--sans);
+  min-height:100vh;
+  padding:0;
+}
+.wrap{max-width:760px;margin:0 auto;padding:28px 20px 60px;}
+.nameplate{
+  background:var(--panel);
+  border:1px solid var(--hair);
+  border-left:6px solid var(--yellow);
+  padding:16px 20px;
+  border-radius:4px;
+  margin-bottom:24px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.nameplate h1{
+  font-size:19px;
+  margin:0;
+  font-weight:700;
+  letter-spacing:.02em;
+}
+.nameplate .sub{
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--dim);
+  margin-top:4px;
+}
+.badge-volt{
+  font-family:var(--mono);
+  font-size:12px;
+  color:#14171a;
+  background:var(--yellow);
+  padding:4px 10px;
+  border-radius:3px;
+  font-weight:700;
+  white-space:nowrap;
+}
+.screen{display:none;}
+.screen.active{display:block;}
+
+.panel-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:12px;
+}
+@media(max-width:520px){.panel-grid{grid-template-columns:1fr;}}
+
+.breaker{
+  background:var(--panel);
+  border:1px solid var(--hair);
+  border-radius:6px;
+  padding:14px 16px;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  gap:14px;
+  text-align:left;
+  color:var(--text);
+  transition:border-color .15s;
+}
+.breaker:hover{border-color:var(--copper);}
+.lever{
+  width:22px;
+  height:44px;
+  border-radius:4px;
+  background:var(--panel2);
+  border:1px solid var(--hair);
+  position:relative;
+  flex:none;
+}
+.lever::after{
+  content:'';
+  position:absolute;
+  left:3px;right:3px;
+  top:3px;height:18px;
+  background:var(--dim);
+  border-radius:3px;
+  transition:top .15s, background .15s;
+}
+.breaker.done .lever::after{top:23px;background:var(--green);}
+.breaker.done{border-color:var(--green);}
+.b-info{flex:1;min-width:0;}
+.b-label{font-size:14px;font-weight:500;}
+.b-meta{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:3px;}
+.b-score{font-family:var(--mono);font-size:13px;color:var(--yellow);font-weight:700;}
+
+.master-breaker{
+  margin-top:16px;
+  background:var(--panel2);
+  border:1px solid var(--copper);
+}
+.master-breaker .b-label{color:var(--copper);font-weight:700;}
+
+.meter{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  font-family:var(--mono);
+  font-size:12px;
+  color:var(--dim);
+  margin-bottom:10px;
+}
+.meter .cat-name{color:var(--yellow);font-weight:700;}
+
+.dots{display:flex;gap:5px;margin-bottom:18px;flex-wrap:wrap;}
+.dot{
+  width:16px;height:10px;
+  border-radius:2px;
+  background:var(--panel2);
+  border:1px solid var(--hair);
+}
+.dot.correct{background:var(--green);border-color:var(--green);}
+.dot.wrong{background:var(--red);border-color:var(--red);}
+.dot.current{border-color:var(--yellow);}
+
+.qcard{
+  background:var(--panel);
+  border:1px solid var(--hair);
+  border-radius:6px;
+  padding:20px;
+  margin-bottom:16px;
+}
+.qtext{font-size:16px;line-height:1.7;font-weight:500;}
+
+.choice{
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+  width:100%;
+  text-align:left;
+  background:var(--panel);
+  border:1px solid var(--hair);
+  border-radius:5px;
+  padding:12px 14px;
+  margin-bottom:9px;
+  color:var(--text);
+  font-family:var(--sans);
+  font-size:14px;
+  cursor:pointer;
+  line-height:1.6;
+}
+.choice:hover:not(.locked){border-color:var(--copper);}
+.choice .term{
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--dim);
+  background:var(--panel2);
+  border:1px solid var(--hair);
+  border-radius:3px;
+  padding:2px 6px;
+  flex:none;
+  margin-top:1px;
+}
+.choice.correct{border-color:var(--green);background:rgba(76,175,109,.12);}
+.choice.correct .term{color:var(--green);border-color:var(--green);}
+.choice.wrong{border-color:var(--red);background:rgba(224,88,79,.12);}
+.choice.wrong .term{color:var(--red);border-color:var(--red);}
+
+.explain{
+  display:none;
+  background:var(--panel2);
+  border-left:4px solid var(--yellow);
+  padding:12px 14px;
+  border-radius:0 4px 4px 0;
+  font-size:13px;
+  line-height:1.7;
+  color:var(--dim);
+  margin-bottom:16px;
+}
+.explain.show{display:block;}
+.explain b{color:var(--text);}
+
+.btnrow{display:flex;justify-content:space-between;gap:10px;}
+.btn{
+  font-family:var(--sans);
+  font-size:14px;
+  font-weight:500;
+  padding:11px 20px;
+  border-radius:5px;
+  border:1px solid var(--hair);
+  background:var(--panel2);
+  color:var(--text);
+  cursor:pointer;
+}
+.btn.primary{background:var(--yellow);color:#14171a;border-color:var(--yellow);font-weight:700;}
+.btn:disabled{opacity:.4;cursor:default;}
+
+.result-head{text-align:center;margin-bottom:22px;}
+.result-score{font-family:var(--mono);font-size:44px;font-weight:700;color:var(--yellow);}
+.result-label{font-size:13px;color:var(--dim);margin-top:2px;}
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.bar-name{width:150px;font-size:12px;color:var(--dim);flex:none;}
+.bar-track{flex:1;height:10px;background:var(--panel2);border-radius:5px;overflow:hidden;border:1px solid var(--hair);}
+.bar-fill{height:100%;background:var(--copper);}
+.bar-pct{width:40px;text-align:right;font-family:var(--mono);font-size:12px;color:var(--text);flex:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="nameplate">
+    <div>
+      <h1>第二種電工 学科ドリル</h1>
+      <div class="sub">DENKO-2 WRITTEN EXAM PRACTICE PANEL</div>
+    </div>
+    <div class="badge-volt" id="headerBadge">100/200V</div>
+  </div>
+
+  <div class="screen active" id="screen-select">
+    <div class="panel-grid" id="categoryGrid"></div>
+    <div class="breaker master-breaker" onclick="startQuiz('all')">
+      <div class="lever"></div>
+      <div class="b-info">
+        <div class="b-label">全カテゴリ ミックス</div>
+        <div class="b-meta">MAIN BREAKER / 全42問からランダム出題</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-quiz">
+    <div class="meter">
+      <span class="cat-name" id="quizCatName">-</span>
+      <span id="quizProgress">0/0</span>
+    </div>
+    <div class="dots" id="quizDots"></div>
+    <div class="qcard">
+      <div class="qtext" id="qtext"></div>
+    </div>
+    <div id="choices"></div>
+    <div class="explain" id="explain"></div>
+    <div class="btnrow">
+      <button class="btn" onclick="backToSelect()">パネルに戻る</button>
+      <button class="btn primary" id="nextBtn" onclick="nextQuestion()" disabled>次の問題へ</button>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-result">
+    <div class="result-head">
+      <div class="result-score" id="resultScore">0%</div>
+      <div class="result-label" id="resultLabel">正解数 0/0</div>
+    </div>
+    <div id="resultBars"></div>
+    <div class="btnrow" style="margin-top:20px;">
+      <button class="btn" onclick="backToSelect()">パネルに戻る</button>
+      <button class="btn primary" id="retryBtn">もう一度</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const CATS = [
+{key:'theory',label:'電気理論',amp:'6問',qs:[
+{q:'抵抗10Ωの抵抗器に100Vの電圧を加えたとき、流れる電流はいくらか。',c:['1A','5A','10A','100A'],a:2,e:'オームの法則 I=V/R より、100V÷10Ω=10A となる。'},
+{q:'5Ωと10Ωの抵抗を直列に接続したときの合成抵抗はいくらか。',c:['2Ω','7.5Ω','15Ω','50Ω'],a:2,e:'直列接続の合成抵抗は各抵抗の和になるため、5+10=15Ωとなる。'},
+{q:'6Ωと3Ωの抵抗を並列に接続したときの合成抵抗はいくらか。',c:['1Ω','2Ω','4.5Ω','9Ω'],a:1,e:'並列合成抵抗は 1/R=1/6+1/3=1/2 より R=2Ωとなる。'},
+{q:'100Vの電圧で2Aの電流が流れる負荷の消費電力はいくらか。',c:['50W','102W','200W','400W'],a:2,e:'電力 P=VI より、100V×2A=200Wとなる。'},
+{q:'一般家庭に供給される単相交流の周波数について、西日本地域で採用されているのはどれか。',c:['50Hz','60Hz','100Hz','120Hz'],a:1,e:'日本の商用電源周波数は東日本が50Hz、西日本が60Hzに分かれている。'},
+{q:'交流回路において、電圧と電流の位相がずれる原因となる素子はどれか。',c:['抵抗器のみ','コイル(インダクタンス)やコンデンサ','乾電池','ヒューズ'],a:1,e:'コイルやコンデンサはリアクタンスを持ち、電圧と電流の位相にずれを生じさせる。'}
+]},
+{key:'wiring',label:'配電理論・配線設計',amp:'6問',qs:[
+{q:'単相3線式100/200V配線で中性線が断線(欠相)した場合に起こりやすい現象はどれか。',c:['常に安全に停止する','負荷の偏りにより電圧が不平衡になる','電流が全く流れなくなる','周波数が変化する'],a:1,e:'中性線が欠相すると負荷バランスにより片側が異常高電圧、他方が低電圧になるおそれがある。'},
+{q:'電線こう長(配線の長さ)が長くなると、一般に電圧降下はどうなるか。',c:['小さくなる','変化しない','大きくなる','ゼロになる'],a:2,e:'電線の抵抗はこう長に比例するため、長くなるほど電圧降下は大きくなる。'},
+{q:'幹線の太さ(許容電流)を決定する際に考慮すべき要素として適切でないものはどれか。',c:['電線に流れる電流の大きさ','電線のこう長による電圧降下','電線の色','周囲の温度条件'],a:2,e:'電線の色は許容電流や電圧降下に関係せず、太さの決定要素にはならない。'},
+{q:'VVFケーブルの名称が表すものはどれか。',c:['架橋ポリエチレン絶縁ケーブル','ビニル絶縁ビニルシースケーブル(平形)','耐熱ビニル絶縁電線','キャブタイヤケーブル'],a:1,e:'VVFは「ビニル絶縁ビニルシースケーブル平形」の略称で、住宅の屋内配線に広く使われる。'},
+{q:'低圧屋内幹線の分岐回路には、過電流から電線を保護するために何を設置する必要があるか。',c:['進相コンデンサ','過電流遮断器','避雷器','変流器'],a:1,e:'分岐回路には配線用遮断器等の過電流遮断器を設け、電線を過電流から保護する。'},
+{q:'単相3線式100/200V配線の利点として適切なものはどれか。',c:['電圧降下が大きくなる','100Vと200Vの負荷を同時に使用できる','電線の本数が単相2線式より少なくて済む','中性線が不要になる'],a:1,e:'単相3線式は2本の電圧線と1本の中性線により100Vと200Vを取り出せ、電力損失も少ない。'}
+]},
+{key:'equipment',label:'電気機器・配線器具・材料',amp:'6問',qs:[
+{q:'白熱電球と比較したLED照明の一般的な特徴として正しいものはどれか。',c:['消費電力が大きく寿命が短い','消費電力が小さく寿命が長い','発熱量が非常に大きい','交流専用で直流では点灯しない'],a:1,e:'LED照明は白熱電球に比べ消費電力が小さく、寿命も大幅に長いという特徴がある。'},
+{q:'配線用遮断器(ブレーカー)の主な役割はどれか。',c:['電圧を昇圧する','過電流や短絡電流を検知して回路を遮断する','力率を改善する','照度を調整する'],a:1,e:'配線用遮断器は過電流や短絡が発生した際に自動的に回路を遮断し、電線や機器を保護する。'},
+{q:'漏電遮断器(ELB)を設置する主な目的はどれか。',c:['消費電力量を測定するため','感電や漏電による火災を防止するため','力率を1に近づけるため','電圧を安定させるため'],a:1,e:'漏電遮断器は地絡電流を検知して回路を遮断し、感電事故や漏電火災を防止する。'},
+{q:'VVFケーブルとVVRケーブルの構造上の主な違いはどれか。',c:['絶縁材料の種類','シースの色のみ','断面形状が平形か丸形か','許容電圧の大きさ'],a:2,e:'VVFは平形、VVRは丸形のシースを持つ点が構造上の主な違いである。'},
+{q:'合成樹脂管工事に用いるCD管について正しい記述はどれか。',c:['屋外露出配管専用である','自己消火性がなくコンクリート埋設等専用に用いる','金属製の管である','可とう性がなく直管のみである'],a:1,e:'CD管は自己消火性を持たないため、露出や隠ぺい場所ではなくコンクリート埋設専用として使用される。'},
+{q:'接地極付コンセントを使用する主な目的はどれか。',c:['消費電力を抑えるため','感電事故を防止するため','電圧を昇圧するため','力率を改善するため'],a:1,e:'接地極付コンセントは機器の金属部分をアースに接続し、漏電時の感電事故を防止する。'}
+]},
+{key:'construction',label:'電気工事の施工方法',amp:'6問',qs:[
+{q:'ケーブル工事において電線相互を接続する場所として適切なのはどれか。',c:['どこで接続しても良い','点検できないコンクリート埋設部分','点検可能なジョイントボックス(接続箱)内','電線管の中間部分'],a:2,e:'電線の接続は原則としてジョイントボックスなど点検可能な場所で行う必要がある。'},
+{q:'電線の接続に関する記述として正しいものはどれか。',c:['接続部分は電線の引張強さを20%以上減少させてはならない','接続部分に絶縁処理は不要である','接続後は必ず電線を切断して短くする','接続箇所数に制限はない'],a:0,e:'電線の接続は引張強さを20%以上減少させず、リングスリーブ等で確実に接続し絶縁被覆で覆う必要がある。'},
+{q:'金属管工事における管の屈曲部の内側半径の目安はどれか。',c:['管内径の2倍以上','管内径の6倍以上','管の長さと同じ','特に規定はない'],a:1,e:'金属管の屈曲部の内側半径は、管内径のおおむね6倍以上とすることが求められる。'},
+{q:'重量物の圧力を受けるおそれがある場所での地中電線路の埋設深さの目安はどれか。',c:['約30cm以上','約60cm以上','約1.2m以上','地表に露出でよい'],a:2,e:'車両など重量物の圧力を受けるおそれがある場所では、埋設深さをおおむね1.2m以上確保する必要がある。'},
+{q:'電線相互の圧着接続に使用する工具はどれか。',c:['ワイヤストリッパー','リングスリーブ用圧着工具','絶縁抵抗計','検電器'],a:1,e:'リングスリーブによる圧着接続には専用のリングスリーブ用圧着工具を使用する。'},
+{q:'がいし引き工事に関する記述として正しいものはどれか。',c:['点検できない隠ぺい場所にも自由に施工できる','乾燥した露出場所や点検できる場所に適する','水気のある場所には使用できない構造である','電線を密着させて配線する工法である'],a:1,e:'がいし引き工事は電線相互を離して支持する工法で、乾燥した露出・点検可能な場所に適する。'}
+]},
+{key:'inspection',label:'検査方法',amp:'6問',qs:[
+{q:'電路の絶縁状態を確認するために使用する測定器はどれか。',c:['接地抵抗計','絶縁抵抗計(メガー)','クランプメーター','検相器'],a:1,e:'絶縁抵抗の測定には絶縁抵抗計(メガー)を使用し、電路と大地間の絶縁状態を確認する。'},
+{q:'対地電圧150V以下の低圧回路における絶縁抵抗値の一般的な基準はどれか。',c:['0.01MΩ以上','0.1MΩ以上','1MΩ以上','10MΩ以上'],a:1,e:'対地電圧150V以下の低圧回路では、絶縁抵抗値はおおむね0.1MΩ以上であることが求められる。'},
+{q:'接地抵抗を測定する際に使用する測定器はどれか。',c:['絶縁抵抗計','接地抵抗計(アーステスター)','検電器','電力量計'],a:1,e:'接地抵抗の測定には接地抵抗計(アーステスター)を用いる。'},
+{q:'配線作業の前に電路の充電の有無を確認するために使用する器具はどれか。',c:['検電器','クランプメーター','電力計','回転計'],a:0,e:'検電器は電路の充電の有無を確認し、感電事故を防止するために使用する。'},
+{q:'一般的な竣工検査(完成後の検査)の進め方として適切な順序はどれか。',c:['通電試験→目視点検→絶縁抵抗測定','目視点検→絶縁抵抗測定→接地抵抗測定→通電試験','接地抵抗測定→通電試験→目視点検','絶縁抵抗測定のみで完了する'],a:1,e:'一般に目視点検の後、絶縁抵抗測定、接地抵抗測定を行い、最後に通電試験を実施する。'},
+{q:'クランプメーターの特徴として正しいものはどれか。',c:['電線を切断しないと電流を測定できない','電線を切らずに挟むだけで電流を測定できる','電圧しか測定できない','接地抵抗専用の測定器である'],a:1,e:'クランプメーターは電線を切断せずに挟み込むだけで交流電流を測定できる測定器である。'}
+]},
+{key:'diagram',label:'配線図',amp:'6問',qs:[
+{q:'配線図においてコンセントを表す記号の一般的な形状はどれか。',c:['半円形','三角形','星形','波線'],a:0,e:'配線図でコンセントは半円形の記号で表されるのが一般的である。'},
+{q:'配線図に描かれる3路スイッチの用途として正しいものはどれか。',c:['1か所のみでオンオフを切り替える','2か所から同一の照明などをオンオフ操作できるようにする','電圧を切り替える','電流の大きさを表示する'],a:1,e:'3路スイッチは階段など2か所から同じ照明を操作したい場合に用いられる。'},
+{q:'配線図で天井直付けの丸形照明器具を表す記号として一般的な描き方はどれか。',c:['丸の中にバツ印','四角の中に三角','矢印のみ','波線のみ'],a:0,e:'天井に取り付ける丸形の照明器具は、丸の中にバツ印を入れた記号で表されることが多い。'},
+{q:'配線図中で「E」の文字が示す意味はどれか。',c:['電圧','接地(アース)','電流','周波数'],a:1,e:'配線図における「E」はEarth(接地)を意味し、接地線や接地端子を表す。'},
+{q:'配線図で配線用遮断器(ブレーカー)を表す略号として一般的なものはどれか。',c:['S','B','E','T'],a:1,e:'配線用遮断器はBreakerの頭文字から「B」で表されることが多い。'},
+{q:'配線図における換気扇の記号についての説明が正しいものはどれか。',c:['羽根を模した専用の記号で他機器と区別する','コンセントと全く同じ記号を使う','接地記号と同一である','スイッチと同一の記号を使う'],a:0,e:'換気扇は専用の記号(羽根を模した図形など)で他の機器と区別して表される。'}
+]},
+{key:'law',label:'法令',amp:'6問',qs:[
+{q:'第二種電気工事士が従事できる工事の範囲について正しいものはどれか。',c:['高圧受電設備すべて','一般用電気工作物等の電気工事','発電所内のすべての工事','電力会社の送電線工事'],a:1,e:'第二種電気工事士は一般用電気工作物等(600V以下等)の電気工事に従事できる。'},
+{q:'電気工事士でなければ従事できないと定められている作業はどれか(軽微な作業を除く)。',c:['一般用電気工作物の電気工事の作業','電球の交換作業','延長コードの使用','家電製品のコンセントへの差込み'],a:0,e:'軽微な作業を除き、一般用電気工作物の電気工事は電気工事士でなければ従事できない。'},
+{q:'電気用品安全法に基づくPSEマークの目的として正しいものはどれか。',c:['製造者の広告のため','安全基準に適合した電気用品であることを示す','価格を保証するため','輸出専用品であることを示す'],a:1,e:'PSEマークは電気用品安全法の技術基準に適合していることを示すマークである。'},
+{q:'電気工事士免状を交付する者はどれか。',c:['市区町村長','都道府県知事','経済産業大臣のみ','電力会社'],a:1,e:'電気工事士免状は都道府県知事が交付する。'},
+{q:'電気工事士法の主な目的として正しいものはどれか。',c:['電気工事業者の利益を保護すること','電気工事の欠陥による災害の発生を防止すること','電気料金を統一すること','発電設備の建設を促進すること'],a:1,e:'電気工事士法は電気工事の欠陥による災害発生を防止することを目的としている。'},
+{q:'電気工事士免状がなくても従事できる軽微な工事の例として正しいものはどれか。',c:['屋内配線の新設工事','差込み接続器(コンセントプラグ)の取替え','分電盤の新設','電線管の新設配管工事'],a:1,e:'差込み接続器やソケットなどの軽微な部品の取替えは、免状がなくても行える軽微な作業とされる。'}
+]}
+];
+
+let stats = {};
+CATS.forEach(c=>stats[c.key]={attempted:0,correct:0});
+
+let state = null;
+
+function renderCategoryScreen(){
+  const grid = document.getElementById('categoryGrid');
+  grid.innerHTML = '';
+  CATS.forEach(c=>{
+    const s = stats[c.key];
+    const done = s.attempted>0;
+    const pct = done? Math.round(s.correct/s.attempted*100) : null;
+    const div = document.createElement('div');
+    div.className = 'breaker'+(done?' done':'');
+    div.onclick = ()=>startQuiz(c.key);
+    div.innerHTML = `
+      <div class="lever"></div>
+      <div class="b-info">
+        <div class="b-label">${c.label}</div>
+        <div class="b-meta">${c.amp}</div>
+      </div>
+      ${done?`<div class="b-score">${pct}%</div>`:''}
+    `;
+    grid.appendChild(div);
+  });
+}
+
+function shuffle(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+
+function startQuiz(key){
+  let qs, label;
+  if(key==='all'){
+    qs = shuffle(CATS.flatMap(c=>c.qs.map(q=>({...q,cat:c.key,catLabel:c.label}))));
+    label = '全カテゴリ ミックス';
+  } else {
+    const cat = CATS.find(c=>c.key===key);
+    qs = shuffle(cat.qs.map(q=>({...q,cat:key,catLabel:cat.label})));
+    label = cat.label;
+  }
+  state = {label, qs, idx:0, results:[]};
+  showScreen('quiz');
+  renderQuestion();
+}
+
+function renderDots(){
+  const dots = document.getElementById('quizDots');
+  dots.innerHTML = '';
+  state.qs.forEach((q,i)=>{
+    const d = document.createElement('div');
+    let cls = 'dot';
+    if(i < state.results.length){
+      cls += state.results[i] ? ' correct' : ' wrong';
+    } else if(i === state.idx){
+      cls += ' current';
+    }
+    d.className = cls;
+    dots.appendChild(d);
+  });
+}
+
+function renderQuestion(){
+  const q = state.qs[state.idx];
+  document.getElementById('quizCatName').textContent = state.label;
+  document.getElementById('quizProgress').textContent = `問題 ${state.idx+1}/${state.qs.length}`;
+  document.getElementById('qtext').textContent = q.q;
+  renderDots();
+  const choicesDiv = document.getElementById('choices');
+  choicesDiv.innerHTML = '';
+  const terms = ['A','B','C','D'];
+  q.c.forEach((text,i)=>{
+    const btn = document.createElement('button');
+    btn.className = 'choice';
+    btn.innerHTML = `<span class="term">${terms[i]}</span><span>${text}</span>`;
+    btn.onclick = ()=>selectAnswer(i);
+    choicesDiv.appendChild(btn);
+  });
+  document.getElementById('explain').className = 'explain';
+  document.getElementById('nextBtn').disabled = true;
+}
+
+function selectAnswer(i){
+  const q = state.qs[state.idx];
+  const buttons = document.querySelectorAll('#choices .choice');
+  buttons.forEach(b=>b.classList.add('locked'));
+  buttons.forEach(b=>b.onclick=null);
+  buttons[q.a].classList.add('correct');
+  const correct = (i===q.a);
+  if(!correct) buttons[i].classList.add('wrong');
+  state.results[state.idx] = correct;
+  stats[q.cat].attempted++;
+  if(correct) stats[q.cat].correct++;
+  const ex = document.getElementById('explain');
+  ex.innerHTML = `<b>${correct?'正解。':'不正解。'}</b> ${q.e}`;
+  ex.className = 'explain show';
+  document.getElementById('nextBtn').disabled = false;
+  renderDots();
+}
+
+function nextQuestion(){
+  if(state.idx < state.qs.length-1){
+    state.idx++;
+    renderQuestion();
+  } else {
+    showResults();
+  }
+}
+
+function showResults(){
+  const total = state.qs.length;
+  const correct = state.results.filter(Boolean).length;
+  const pct = Math.round(correct/total*100);
+  document.getElementById('resultScore').textContent = pct+'%';
+  document.getElementById('resultLabel').textContent = `正解数 ${correct}/${total}`;
+  const bars = document.getElementById('resultBars');
+  bars.innerHTML = '';
+  CATS.forEach(c=>{
+    const s = stats[c.key];
+    if(s.attempted===0) return;
+    const p = Math.round(s.correct/s.attempted*100);
+    const row = document.createElement('div');
+    row.className = 'bar-row';
+    row.innerHTML = `
+      <div class="bar-name">${c.label}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${p}%"></div></div>
+      <div class="bar-pct">${p}%</div>
+    `;
+    bars.appendChild(row);
+  });
+  document.getElementById('retryBtn').onclick = ()=>startQuiz(state.qs[0].cat===undefined?'all':(state.qs.every(q=>q.cat===state.qs[0].cat)?state.qs[0].cat:'all'));
+  showScreen('result');
+}
+
+function backToSelect(){
+  renderCategoryScreen();
+  showScreen('select');
+}
+
+function showScreen(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+}
+
+renderCategoryScreen();
+</script>
+</body>
+</html>
